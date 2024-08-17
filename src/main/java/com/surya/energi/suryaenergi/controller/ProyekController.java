@@ -1,6 +1,28 @@
+package com.surya.energi.suryaenergi.controller;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.surya.energi.suryaenergi.exception.ResourceNotFoundException;
+import com.surya.energi.suryaenergi.model.Lokasi;
+import com.surya.energi.suryaenergi.model.Proyek;
+import com.surya.energi.suryaenergi.model.ProyekLokasi;
+import com.surya.energi.suryaenergi.model.ProyekLokasiId;
+import com.surya.energi.suryaenergi.repository.LokasiRepository;
+import com.surya.energi.suryaenergi.repository.ProyekLokasiRepository;
+import com.surya.energi.suryaenergi.repository.ProyekRepository;
 
 @RestController
 @RequestMapping("/proyek")
@@ -26,6 +48,7 @@ public class ProyekController {
         ProyekLokasi proyekLokasi = new ProyekLokasi();
         proyekLokasi.setProyek(savedProyek);
         proyekLokasi.setLokasi(lokasi);
+        proyekLokasi.setId(new ProyekLokasiId(savedProyek.getId(), lokasi.getId()));
         proyekLokasiRepository.save(proyekLokasi);
 
         return savedProyek;
@@ -40,6 +63,7 @@ public class ProyekController {
     public Proyek updateProyek(@PathVariable Long id, @RequestBody Proyek updatedProyek, @RequestParam Long lokasiId) {
         return proyekRepository.findById(id)
                 .map(proyek -> {
+                    // Update proyek fields
                     proyek.setNamaProyek(updatedProyek.getNamaProyek());
                     proyek.setClient(updatedProyek.getClient());
                     proyek.setTglMulai(updatedProyek.getTglMulai());
@@ -48,11 +72,12 @@ public class ProyekController {
                     proyek.setKeterangan(updatedProyek.getKeterangan());
                     Proyek savedProyek = proyekRepository.save(proyek);
 
+                    // Find or create ProyekLokasi
+                    Lokasi lokasi = lokasiRepository.findById(lokasiId)
+                            .orElseThrow(() -> new ResourceNotFoundException("Lokasi not found"));
+
                     ProyekLokasi proyekLokasi = proyekLokasiRepository.findById(new ProyekLokasiId(savedProyek.getId(), lokasiId))
-                            .orElse(new ProyekLokasi());
-                    proyekLokasi.setProyek(savedProyek);
-                    proyekLokasi.setLokasi(lokasiRepository.findById(lokasiId)
-                            .orElseThrow(() -> new ResourceNotFoundException("Lokasi not found")));
+                            .orElse(new ProyekLokasi(new ProyekLokasiId(savedProyek.getId(), lokasiId), savedProyek, lokasi));
                     proyekLokasiRepository.save(proyekLokasi);
 
                     return savedProyek;
